@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>File Upload</title>
+    <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+    <script src="https://unpkg.com/htmx.org/dist/ext/upload.js"></script>
+    <style>
+        .progress-bar {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 20px;
+            width: 0%;
+            background-color: #4caf50;
+            transition: width 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <h1>File Upload</h1>
+    <form action="http://10.153.115.29:3000/upload" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="Authorization" value="Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJNWkZvc0FNVkh3V3JxZnhfR0l3QzVsdkRiTVFydm5NWEhqQ0FYZF9odlZVIn0.eyJleHAiOjE3NTQ2NTI5NTgsImlhdCI6MTc1NDY1MTE1OCwianRpIjoib25ydHJvOjE5NjhlMDdhLTQ1MzUtMzdkMi1lMTA0LWJmOWFhYzI0ZTlmZCIsImlzcyI6Imh0dHA6Ly8xMC4xNTMuMTE1LjI5OjgwODAvcmVhbG1zL3VwbG9hZC1yZWFsbSIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiJlMjgyOWQyYy04Mzg0LTQ5ZjQtYTU3Yi03MjcyNDQ4NzQ2NjIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJ1cGxvYWQtY2xpZW50Iiwic2lkIjoiNmE4ODNjMjItOGE4NS00MGNhLWFlNTAtYzU1MGJhZmMxY2ZhIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vMTAuMTUzLjExNS4yOTozMDAwIiwiaHR0cDovLzEwLjE1My4xMTUuMjk6ODAwMCIsImh0dHA6Ly9sb2NhbGhvc3Q6ODAwMCIsImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiIsImRlZmF1bHQtcm9sZXMtdXBsb2FkLXJlYWxtIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiR3V5IEdoaXMiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJnaGlzIiwiZ2l2ZW5fbmFtZSI6Ikd1eSIsImZhbWlseV9uYW1lIjoiR2hpcyIsImVtYWlsIjoiZ2hpc0BnbWFpbC5jb20ifQ.Flnug-BP8mZgP3jDTOMmHUsN-Cef28wsaZSlezLBq2kgtaz8Fahi9FzG5awzKc9J5RcXrx4GKwUteAq2aohrWHzg2GgK40O-aKK8kG346rKsN7CyWC01p1PV7vO00dPNNKCFUuIUlJVFssbyK0PNk0aHjviniJPeuENIQBML1KQw3vcCOd2hODygYfljLdKmHoBJHV9BEmLRM2nUt7VJ__RiU5MBJgiVE0LgBPNa-OjEoeizGD-KWCEvEpHXS489qeCZWK4eiTQXuMnET99I03HsLt_4Hz_lavMpdQbcDhlJCRZLWb21tKUC3bZpNyonwUboMfR5oY8VugaGCRKvHw">
+        <input type="file" name="file">
+        <button type="submit">Upload</button>
+    </form>
+    <div id="response"></div>
+    <div class="progress-bar">
+        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+    </div>
+
+    <script>
+        document.body.addEventListener('htmx:upload:progress', function(evt) {
+            const progress = (evt.detail.loaded / evt.detail.total) * 100;
+            document.getElementById('progress-bar-fill').style.width = progress + '%';
+        });
+    </script>
+</body>
+</html>
