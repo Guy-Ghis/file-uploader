@@ -1,10 +1,10 @@
 use actix_multipart::Multipart;
-use actix_web::{HttpRequest, HttpResponse, Result as ActixResult};
+use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
 use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::Utc;
 use futures::StreamExt;
-use serde::Serialize;
-use std::fs;
+use serde::{Deserialize, Serialize};
+use std::{env, fs};
 use std::path::Path;
 use tokio::io::AsyncWriteExt;
 
@@ -34,7 +34,9 @@ pub async fn upload_file(
     auth: BearerAuth,
     _req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
+    log::info!("=== UPLOAD HANDLER CALLED ===");
     log::info!("Starting file upload process");
+    println!("=== BACKEND: Upload handler was called! ===");
     
     // Step 1: Authorization Check - Validate JWT and get user
     log::info!("Step 1: Validating JWT token");
@@ -51,7 +53,8 @@ pub async fn upload_file(
 
     // Step 2: File Processing - Prepare upload directory
     log::info!("Step 2: Preparing file storage");
-    let uploads_dir = Path::new("./uploads");
+    let uploads_path = env::var("UPLOADS_DIR").unwrap_or_else(|_| "./uploads".to_string());
+    let uploads_dir = Path::new(&uploads_path);
     if !uploads_dir.exists() {
         fs::create_dir_all(uploads_dir).map_err(|e| {
             log::error!("Failed to create uploads directory: {}", e);
@@ -116,11 +119,87 @@ pub async fn upload_file(
 
     // Step 4: Metadata Logging - Create and append metadata entry
     log::info!("Step 4: Logging upload metadata");
-    log_upload_metadata(filename.clone(), user.clone(), total_bytes)?;
+    let metadata_file = env::var("METADATA_FILE").unwrap_or_else(|_| "./uploads.json".to_string());
+    log_upload_metadata(filename.clone(), user.clone(), total_bytes, &metadata_file)?;
 
     log::info!("Upload process completed successfully for file: {}", filename);
     
     // Return success response with file details
     let response = create_upload_response(filename, user, total_bytes);
     Ok(HttpResponse::Ok().json(response))
+}
+
+#[derive(Deserialize)]
+pub struct TokenExchangeRequest {
+    pub code: String,
+    pub code_verifier: String,
+    pub redirect_uri: String,
+}
+
+#[derive(Serialize)]
+pub struct TokenResponse {
+    pub access_token: String,
+    pub token_type: String,
+    pub expires_in: Option<u64>,
+}
+
+/// Token exchange endpoint - proxies token request to Keycloak
+pub async fn exchange_token(
+    token_request: web::Json<TokenExchangeRequest>,
+) -> Result<HttpResponse, actix_web::Error> {
+    log::info!("Processing token exchange request");
+    
+    let keycloak_url = env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set");
+    let keycloak_realm = env::var("KEYCLOAK_REALM").unwrap_or_else(|_| "upload-realm".to_string());
+    let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
+    let client_secret = env::var("CLIENT_SECRET").expect("CLIENT_SECRET must be set");
+    
+    let token_url = format!("{}/realms/{}/protocol/openid-connect/token", keycloak_url, keycloak_realm);
+    
+    let client = reqwest::Client::new();
+    let params = [
+        ("grant_type", "authorization_code"),
+        ("client_id", &client_id),
+        ("client_secret", &client_secret),
+        ("code", &token_request.code),
+        ("redirect_uri", &token_request.redirect_uri),
+        ("code_verifier", &token_request.code_verifier),
+    ];
+    
+    match client
+        .post(&token_url)
+        .form(&params)
+        .send()
+        .await
+    {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>().await {
+                    Ok(token_data) => {
+                        log::info!("Token exchange successful");
+                        Ok(HttpResponse::Ok().json(token_data))
+                    }
+                    Err(e) => {
+                        log::error!("Failed to parse token response: {}", e);
+                        Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                            "error": "Failed to parse token response"
+                        })))
+                    }
+                }
+            } else {
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                log::error!("Token exchange failed: {}", error_text);
+                Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Token exchange failed",
+                    "details": error_text
+                })))
+            }
+        }
+        Err(e) => {
+            log::error!("Failed to connect to Keycloak: {}", e);
+            Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to connect to Keycloak"
+            })))
+        }
+    }
 }
