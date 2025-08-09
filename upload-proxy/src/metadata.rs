@@ -26,6 +26,7 @@ pub fn log_upload_metadata(
     filename: String,
     user: String,
     size_bytes: u64,
+    metadata_file_path: &str,
 ) -> Result<(), actix_web::Error> {
     log::info!("Logging upload metadata for file: {}", filename);
     
@@ -37,13 +38,13 @@ pub fn log_upload_metadata(
     };
 
     // Read existing metadata or create new vector
-    let mut uploads = if Path::new("./uploads.json").exists() {
-        let content = fs::read_to_string("./uploads.json").map_err(|e| {
-            log::error!("Failed to read uploads.json: {}", e);
+    let mut uploads = if Path::new(metadata_file_path).exists() {
+        let content = fs::read_to_string(metadata_file_path).map_err(|e| {
+            log::error!("Failed to read {}: {}", metadata_file_path, e);
             actix_web::error::ErrorInternalServerError(format!("Failed to read metadata: {}", e))
         })?;
         serde_json::from_str::<Vec<UploadMetadata>>(&content).unwrap_or_else(|e| {
-            log::warn!("Failed to parse uploads.json, creating new: {}", e);
+            log::warn!("Failed to parse {}, creating new: {}", metadata_file_path, e);
             vec![]
         })
     } else {
@@ -58,9 +59,9 @@ pub fn log_upload_metadata(
         .write(true)
         .create(true)
         .truncate(true)
-        .open("./uploads.json")
+        .open(metadata_file_path)
         .map_err(|e| {
-            log::error!("Failed to open uploads.json for writing: {}", e);
+            log::error!("Failed to open {} for writing: {}", metadata_file_path, e);
             actix_web::error::ErrorInternalServerError(format!("Failed to open metadata file: {}", e))
         })?;
     
