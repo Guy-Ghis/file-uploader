@@ -23,11 +23,14 @@ pub struct Claims {
 /// Validates JWT token against Keycloak and returns user ID
 pub async fn validate_token(token: &str) -> Result<String, actix_web::Error> {
     let keycloak_url = env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set");
-    let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
-    let client_secret = env::var("CLIENT_SECRET").expect("CLIENT_SECRET must be set");
+    let keycloak_realm = env::var("KEYCLOAK_REALM").unwrap_or_else(|_| "upload-realm".to_string());
+    // Note: CLIENT_ID and CLIENT_SECRET are loaded for completeness but not used in JWT validation
+    let _client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
+    let _client_secret = env::var("CLIENT_SECRET").expect("CLIENT_SECRET must be set");
+    let jwt_audience = env::var("JWT_AUDIENCE").unwrap_or_else(|_| "account,upload-client".to_string());
 
     // Fetch Keycloak's public key
-    let jwks_url = format!("{}/realms/upload-realm/protocol/openid-connect/certs", keycloak_url);
+    let jwks_url = format!("{}/realms/{}/protocol/openid-connect/certs", keycloak_url, keycloak_realm);
     log::info!("Fetching JWKS from: {}", jwks_url);
     
     let client = reqwest::Client::new();
@@ -61,11 +64,14 @@ pub async fn validate_token(token: &str) -> Result<String, actix_web::Error> {
         })?;
         
     let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
-    validation.set_audience(&["account", "upload-client"]);
+    let audiences: Vec<&str> = jwt_audience.split(',').map(|s| s.trim()).collect();
+    validation.set_audience(&audiences);
     
+    log::info!("Attempting to decode token with audiences: {:?}", audiences);
     let token_data = decode::<Claims>(token, &decoding_key, &validation)
         .map_err(|e| {
             log::error!("JWT validation failed: {}", e);
+            log::error!("Token: {}", token);
             actix_web::error::ErrorUnauthorized(format!("Invalid token: {}", e))
         })?;
 
