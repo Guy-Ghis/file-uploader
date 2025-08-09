@@ -2,41 +2,628 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>File Upload</title>
-    <script src="https://unpkg.com/htmx.org@2.0.2"></script>
-    <script src="https://unpkg.com/htmx.org/dist/ext/upload.js"></script>
+    <title>File Upload System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script>
+        // Simple upload extension for htmx - just ensures Authorization header is set
+        htmx.defineExtension('upload', {
+            onEvent: function(name, evt) {
+                if (name === "htmx:beforeRequest") {
+                    var form = evt.detail.elt;
+                    if (form.tagName === "FORM" && form.hasAttribute("hx-ext")) {
+                        console.log("Upload extension active for form:", form.id);
+                        
+                        // Initialize headers if undefined
+                        if (!evt.detail.headers) {
+                            evt.detail.headers = {};
+                        }
+                        
+                        // Set Authorization header if token is available
+                        if (typeof accessToken !== 'undefined' && accessToken) {
+                            evt.detail.headers['Authorization'] = 'Bearer ' + accessToken;
+                            console.log("✅ Authorization header set in HTMX extension:", 'Bearer ' + accessToken.substring(0, 20) + '...');
+                        } else {
+                            console.log("❌ No access token available for upload");
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+    <script src="config.js"></script>
     <style>
+        :root {
+            --bg: #0b1020;
+            --panel: #11182d;
+            --panel-border: #1f2b48;
+            --text: #e6ecff;
+            --muted: #9fb0d3;
+            --primary: #4f7cff;
+            --primary-600: #3c63d6;
+            --success-bg: #0f3322;
+            --success-border: #1e7a53;
+            --error-bg: #331616;
+            --error-border: #7a2a2a;
+            --radius: 12px;
+            --shadow: 0 10px 30px rgba(0,0,0,0.35);
+        }
+
+        html, body {
+            height: 100%;
+        }
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 600px at 10% -10%, #1a2a6c33, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #b21f1f22, transparent 50%),
+                linear-gradient(180deg, #0a0f1e 0%, #090d1a 100%);
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+
+        .app-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+            margin: 8px 0 24px;
+            background: linear-gradient(90deg, #a0b4ff, #e6ecff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            padding: 22px 20px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(6px);
+            margin: 18px 0;
+        }
+
+        .card h2 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 18px;
+            margin: 0 0 10px;
+        }
+        .card h2 .step {
+            display: inline-grid;
+            place-items: center;
+            width: 26px;
+            height: 26px;
+            border-radius: 8px;
+            background: #1b2550;
+            border: 1px solid #2a3770;
+            color: #cfe0ff;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .muted { color: var(--muted); }
+
+        .btn {
+            appearance: none;
+            border: 0;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: transform .06s ease, background .2s ease, box-shadow .2s ease;
+            box-shadow: 0 6px 18px rgba(79,124,255,.25);
+        }
+        .btn:active { transform: translateY(1px) scale(.99); }
+        .btn-primary { background: var(--primary); }
+        .btn-primary:hover { background: var(--primary-600); }
+        .btn-secondary { background: #233158; box-shadow: 0 6px 18px rgba(35,49,88,.25); }
+
+        input[type="file"] {
+            width: 100%;
+            color: var(--muted);
+            background: #0e1530;
+            border: 1px dashed #2b3a6a;
+            border-radius: 10px;
+            padding: 14px;
+            margin: 10px 0 14px;
+        }
+
+        .progress {
+            margin-top: 8px;
+        }
         .progress-bar {
             width: 100%;
-            background-color: #f3f3f3;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            height: 12px;
+            background-color: #0e1530;
+            border: 1px solid #213264;
+            border-radius: 999px;
             overflow: hidden;
         }
         .progress-bar-fill {
-            height: 20px;
+            height: 100%;
             width: 0%;
-            background-color: #4caf50;
-            transition: width 0.3s ease-in-out;
+            background: linear-gradient(90deg, #4f7cff, #8aa4ff);
+            transition: width 0.25s ease-in-out;
         }
+        .progress-text { color: var(--muted); font-size: 12px; margin: 8px 0 6px; }
+
+        .status {
+            padding: 12px 14px;
+            margin: 12px 0;
+            border-radius: 10px;
+            border: 1px solid transparent;
+        }
+        .status.success { background: var(--success-bg); border-color: var(--success-border); }
+        .status.error { background: var(--error-bg); border-color: var(--error-border); }
+
+        .footer { color: var(--muted); font-size: 12px; text-align: center; margin-top: 22px; }
     </style>
 </head>
 <body>
-    <h1>File Upload</h1>
-    <form action="http://10.153.115.29:3000/upload" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="Authorization" value="Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJNWkZvc0FNVkh3V3JxZnhfR0l3QzVsdkRiTVFydm5NWEhqQ0FYZF9odlZVIn0.eyJleHAiOjE3NTQ2NTI5NTgsImlhdCI6MTc1NDY1MTE1OCwianRpIjoib25ydHJvOjE5NjhlMDdhLTQ1MzUtMzdkMi1lMTA0LWJmOWFhYzI0ZTlmZCIsImlzcyI6Imh0dHA6Ly8xMC4xNTMuMTE1LjI5OjgwODAvcmVhbG1zL3VwbG9hZC1yZWFsbSIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiJlMjgyOWQyYy04Mzg0LTQ5ZjQtYTU3Yi03MjcyNDQ4NzQ2NjIiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJ1cGxvYWQtY2xpZW50Iiwic2lkIjoiNmE4ODNjMjItOGE4NS00MGNhLWFlNTAtYzU1MGJhZmMxY2ZhIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vMTAuMTUzLjExNS4yOTozMDAwIiwiaHR0cDovLzEwLjE1My4xMTUuMjk6ODAwMCIsImh0dHA6Ly9sb2NhbGhvc3Q6ODAwMCIsImh0dHA6Ly9sb2NhbGhvc3Q6MzAwMCJdLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiIsImRlZmF1bHQtcm9sZXMtdXBsb2FkLXJlYWxtIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgZW1haWwgcHJvZmlsZSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiR3V5IEdoaXMiLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJnaGlzIiwiZ2l2ZW5fbmFtZSI6Ikd1eSIsImZhbWlseV9uYW1lIjoiR2hpcyIsImVtYWlsIjoiZ2hpc0BnbWFpbC5jb20ifQ.Flnug-BP8mZgP3jDTOMmHUsN-Cef28wsaZSlezLBq2kgtaz8Fahi9FzG5awzKc9J5RcXrx4GKwUteAq2aohrWHzg2GgK40O-aKK8kG346rKsN7CyWC01p1PV7vO00dPNNKCFUuIUlJVFssbyK0PNk0aHjviniJPeuENIQBML1KQw3vcCOd2hODygYfljLdKmHoBJHV9BEmLRM2nUt7VJ__RiU5MBJgiVE0LgBPNa-OjEoeizGD-KWCEvEpHXS489qeCZWK4eiTQXuMnET99I03HsLt_4Hz_lavMpdQbcDhlJCRZLWb21tKUC3bZpNyonwUboMfR5oY8VugaGCRKvHw">
-        <input type="file" name="file">
-        <button type="submit">Upload</button>
-    </form>
-    <div id="response"></div>
-    <div class="progress-bar">
-        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+    <div class="container">
+      <div class="app-title">Secure File Upload System</div>
+    
+    <!-- Authentication Section -->
+    <div id="auth-section" class="auth-section card">
+        <h2><span class="step">1</span> Authentication</h2>
+        <p class="muted">Please authenticate with Keycloak to get your access token:</p>
+        <button class="btn btn-primary" onclick="authenticateUser()">Login with Keycloak</button>
+        <div id="auth-status"></div>
+    </div>
+
+    <!-- Upload Section -->
+    <div id="upload-section" class="upload-section card hidden">
+        <h2><span class="step">2</span> File Upload</h2>
+        <form id="upload-form" 
+              hx-post="http://localhost:3000/upload"
+              hx-target="#upload-response"
+              hx-ext="upload"
+              enctype="multipart/form-data">
+            <input type="file" name="file" required id="file-input">
+            <br>
+            <button type="submit" class="btn btn-primary" id="upload-btn">Upload File</button>
+        </form>
+        
+        <div id="upload-progress" class="hidden">
+            <div class="progress">
+                <div class="progress-text">Uploading... <span id="progress-percent">0%</span></div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" id="progress-bar-fill"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="upload-response"></div>
+    </div>
+
+     <div class="footer">Built with Rust, Actix, Keycloak, HTMX</div>
     </div>
 
     <script>
+        console.log('JavaScript is loading...');
+        let accessToken = null;
+        let codeVerifier = null;
+        console.log('Variables initialized');
+
+        // Generate PKCE code verifier and challenge
+        function generatePKCE() {
+            // Generate code verifier (random string)
+            const array = new Uint8Array(32);
+            crypto.getRandomValues(array);
+            codeVerifier = btoa(String.fromCharCode.apply(null, array))
+                .replace(/\+/g, '-')
+                .replace(/\//g, '_')
+                .replace(/=/g, '');
+            
+            // Generate code challenge (SHA256 hash of verifier)
+            return crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier))
+                .then(hash => {
+                    const codeChallenge = btoa(String.fromCharCode.apply(null, new Uint8Array(hash)))
+                        .replace(/\+/g, '-')
+                        .replace(/\//g, '_')
+                        .replace(/=/g, '');
+                    return codeChallenge;
+                });
+        }
+
+        // Authentication function with PKCE
+        async function authenticateUser() {
+            try {
+                // Generate PKCE parameters
+                const codeChallenge = await generatePKCE();
+                
+                // Store code verifier for later use
+                sessionStorage.setItem('code_verifier', codeVerifier);
+                
+                // Build authorization URL with PKCE
+                const redirectUri = encodeURIComponent(window.location.origin + window.location.pathname);
+                const state = Math.random().toString(36).substring(2, 15);
+                
+                const authUrl = `${CONFIG.getKeycloakAuthUrl()}?` +
+                    `client_id=${CONFIG.CLIENT_ID}&` +
+                    `redirect_uri=${redirectUri}&` +
+                    `response_type=code&` +
+                    `scope=openid&` +
+                    `code_challenge=${codeChallenge}&` +
+                    `code_challenge_method=S256&` +
+                    `state=${state}`;
+                
+                // Store state for validation
+                sessionStorage.setItem('oauth_state', state);
+                
+                // Redirect to Keycloak
+                window.location.href = authUrl;
+                
+            } catch (error) {
+                document.getElementById('auth-status').innerHTML = 
+                    '<div class="status error">Authentication failed: ' + error.message + '</div>';
+            }
+        }
+
+        // Handle OAuth2 callback after redirect from Keycloak
+        async function handleOAuthCallback() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const state = urlParams.get('state');
+            const error = urlParams.get('error');
+            
+            if (error) {
+                document.getElementById('auth-status').innerHTML = 
+                    `<div class="status error">Authentication failed: ${error}</div>`;
+                return;
+            }
+            
+            if (code && state) {
+                // Validate state
+                const storedState = sessionStorage.getItem('oauth_state');
+                if (state !== storedState) {
+                    document.getElementById('auth-status').innerHTML = 
+                        '<div class="status error">Invalid state parameter</div>';
+                    return;
+                }
+                
+                // Exchange code for token
+                await exchangeCodeForToken(code);
+                
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        async function exchangeCodeForToken(code) {
+            try {
+                // First check if upload service is healthy
+                const healthResponse = await fetch(CONFIG.getHealthUrl());
+                if (!healthResponse.ok) {
+                    throw new Error('Upload service is not available');
+                }
+                
+                // Retrieve stored code verifier
+                const storedCodeVerifier = sessionStorage.getItem('code_verifier');
+                if (!storedCodeVerifier) {
+                    throw new Error('Code verifier not found in session storage');
+                }
+                
+                // Use backend token exchange endpoint instead of calling Keycloak directly
+                const response = await fetch(`${CONFIG.BACKEND_URL}/token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        code: code,
+                        code_verifier: storedCodeVerifier,
+                        redirect_uri: window.location.origin + window.location.pathname
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    accessToken = data.access_token;
+                    
+                    document.getElementById('auth-status').innerHTML = 
+                        '<div class="status success">✅ Authentication successful! You can now upload files. <button onclick="logout()" style="margin-left: 10px;">Logout</button></div>';
+                    
+                    // Set the upload URL dynamically
+                    const uploadUrl = CONFIG.getUploadUrl();
+                    console.log('Setting upload URL to:', uploadUrl);
+                    const uploadForm = document.getElementById('upload-form');
+                    
+                    // Remove any existing htmx attributes and re-add them
+                    uploadForm.removeAttribute('hx-post');
+                    uploadForm.setAttribute('hx-post', uploadUrl);
+                    
+                    // Force htmx to reprocess the entire form
+                    if (window.htmx) {
+                        htmx.process(uploadForm);
+                    }
+                    
+                    console.log('Form hx-post attribute set to:', uploadForm.getAttribute('hx-post'));
+                    
+                    // Test backend connectivity
+                    fetch('http://localhost:3000/health')
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log('Backend health check successful:', data);
+                        })
+                        .catch(error => {
+                            console.error('Backend health check failed:', error);
+                        });
+                    
+                    document.getElementById('upload-section').classList.remove('hidden');
+                } else {
+                    throw new Error('Failed to get access token');
+                }
+            } catch (error) {
+                document.getElementById('auth-status').innerHTML = 
+                    '<div class="status error">Authentication failed: ' + error.message + '</div>';
+            }
+        }
+
+        // Set Authorization header for upload requests
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            console.log('=== HTMX CONFIG REQUEST ===');
+            console.log('Element ID:', evt.detail.elt.id);
+            console.log('Element:', evt.detail.elt);
+            console.log('Headers before:', evt.detail.headers);
+            
+            if (accessToken && evt.detail.elt.id === 'upload-form') {
+                evt.detail.headers['Authorization'] = 'Bearer ' + accessToken;
+                console.log('✅ Authorization header set for upload form:', 'Bearer ' + accessToken.substring(0, 20) + '...');
+                console.log('Headers after:', evt.detail.headers);
+            } else if (!accessToken) {
+                console.log('❌ No access token available!');
+            } else {
+                console.log('❌ Element ID mismatch or no access token');
+            }
+        });
+
+        // Handle upload progress
         document.body.addEventListener('htmx:upload:progress', function(evt) {
-            const progress = (evt.detail.loaded / evt.detail.total) * 100;
+            const progress = Math.round((evt.detail.loaded / evt.detail.total) * 100);
             document.getElementById('progress-bar-fill').style.width = progress + '%';
+            document.getElementById('progress-percent').textContent = progress + '%';
+            document.getElementById('upload-progress').classList.remove('hidden');
+        });
+
+        // Handle upload start
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                console.log('=== HTMX BEFORE REQUEST ===');
+                console.log('Upload starting...', evt.detail);
+                console.log('Request details:', evt.detail.requestConfig);
+                console.log('Target URL:', evt.detail.requestConfig ? evt.detail.requestConfig.url : 'Not available');
+                console.log('HTTP Method:', evt.detail.requestConfig ? evt.detail.requestConfig.verb : 'Not available');
+                console.log('Form hx-post attribute:', evt.detail.elt.getAttribute('hx-post'));
+                console.log('Form action attribute:', evt.detail.elt.getAttribute('action'));
+                console.log('Access token:', accessToken ? 'Present' : 'Missing');
+                console.log('Authorization header:', evt.detail.headers ? evt.detail.headers['Authorization'] : 'Not set');
+                
+                // Critical check: If URL is wrong, stop the request
+                const targetUrl = evt.detail.requestConfig ? evt.detail.requestConfig.url : '';
+                if (targetUrl && !targetUrl.includes('localhost:3000')) {
+                    console.error('STOPPING REQUEST - Wrong URL:', targetUrl);
+                    evt.preventDefault();
+                    alert('Error: Request going to wrong server. Please refresh the page.');
+                    return false;
+                }
+                
+                document.getElementById('upload-btn').disabled = true;
+                document.getElementById('upload-progress').classList.remove('hidden');
+            }
+        });
+
+        // Handle upload completion
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('upload-progress').classList.add('hidden');
+                
+                // Reset progress bar
+                document.getElementById('progress-bar-fill').style.width = '0%';
+                document.getElementById('progress-percent').textContent = '0%';
+            }
+        });
+
+        // Handle successful upload
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+            if (evt.detail.target.id === 'upload-response') {
+                // Reset form
+                document.getElementById('upload-form').reset();
+                
+                // Try to parse and display structured response
+                try {
+                    const responseText = evt.detail.target.innerHTML;
+                    if (responseText.includes('"status"')) {
+                        const data = JSON.parse(responseText);
+                        if (data.status === 'success') {
+                            evt.detail.target.innerHTML = `
+                                <div class="status success">
+                                    ✅ ${data.message}<br>
+                                    <strong>File:</strong> ${data.filename}<br>
+                                    <strong>Size:</strong> ${(data.size_bytes / 1024).toFixed(2)} KB<br>
+                                    <strong>Uploaded at:</strong> ${new Date(data.timestamp).toLocaleString()}
+                                </div>
+                            `;
+                        }
+                    }
+                } catch (e) {
+                    // If parsing fails, keep the original response
+                    console.log('Response parsing failed, keeping original:', e);
+                }
+            }
+        });
+        
+        // Handle upload errors
+        document.body.addEventListener('htmx:responseError', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                console.log('=== UPLOAD ERROR ===');
+                console.log('Error details:', evt.detail);
+                console.log('XHR status:', evt.detail.xhr.status);
+                console.log('XHR response:', evt.detail.xhr.responseText);
+                console.log('Request URL:', evt.detail.xhr.responseURL);
+                
+                const errorMsg = evt.detail.xhr.responseText || 'Upload failed';
+                document.getElementById('upload-response').innerHTML = 
+                    '<div class="status error">❌ Upload failed: ' + errorMsg + '</div>';
+            }
+        });
+
+        // Handle HTMX request being sent
+        document.body.addEventListener('htmx:beforeSend', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                console.log('=== HTMX BEFORE SEND ===');
+                console.log('About to send request:', evt.detail);
+                console.log('XHR object:', evt.detail.xhr);
+                console.log('Request URL:', evt.detail.xhr.responseURL || 'Not set yet');
+            }
+        });
+
+        // Handle HTMX request errors
+        document.body.addEventListener('htmx:sendError', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                console.log('=== HTMX SEND ERROR ===');
+                console.log('Send error details:', evt.detail);
+                console.log('Error type:', evt.detail.error);
+                
+                document.getElementById('upload-response').innerHTML = 
+                    '<div class="status error">❌ Network error: Could not connect to server</div>';
+                document.getElementById('upload-btn').disabled = false;
+                document.getElementById('upload-progress').classList.add('hidden');
+            }
+        });
+
+        // Handle HTMX timeout
+        document.body.addEventListener('htmx:timeout', function(evt) {
+            console.log('=== HTMX TIMEOUT ===', evt.detail);
+        });
+
+        // Handle any HTMX errors
+        document.body.addEventListener('htmx:abort', function(evt) {
+            console.log('=== HTMX ABORT ===', evt.detail);
+        });
+
+        // Handle successful response
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.elt.id === 'upload-form') {
+                console.log('=== HTMX AFTER REQUEST ===');
+                console.log('Response received:', evt.detail);
+                console.log('Status:', evt.detail.xhr.status);
+                console.log('Response text:', evt.detail.xhr.responseText);
+            }
+        });
+
+        // Logout function
+        function logout() {
+            // Clear stored tokens and session data
+            accessToken = null;
+            sessionStorage.removeItem('oauth_state');
+            sessionStorage.removeItem('code_verifier');
+            
+            // Reset UI
+            document.getElementById('auth-status').innerHTML = 
+                '<div class="status info">Logged out successfully. Please authenticate to continue.</div>';
+            document.getElementById('upload-section').classList.add('hidden');
+            document.getElementById('upload-response').innerHTML = '';
+            
+            // Show login button again
+            document.getElementById('auth-section').style.display = 'block';
+        }
+
+        // Initialize page - check for OAuth callback
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded, initializing...');
+            
+            // Check if htmx and upload extension are loaded
+            console.log('HTMX available:', typeof htmx !== 'undefined');
+            console.log('HTMX version:', htmx ? htmx.version : 'Not available');
+            
+            // Check if upload extension is available
+            if (htmx && htmx.defineExtension) {
+                console.log('HTMX extensions system available');
+            } else {
+                console.error('HTMX extensions system not available!');
+            }
+            
+            // Simple form validation before HTMX submission
+            document.getElementById('upload-form').addEventListener('submit', function(e) {
+                console.log('Form submit event triggered');
+                
+                const fileInput = document.getElementById('file-input');
+                if (!fileInput.files.length) {
+                    console.log('No file selected');
+                    e.preventDefault();
+                    alert('Please select a file first!');
+                    return false;
+                }
+                
+                if (!accessToken) {
+                    console.log('No access token');
+                    e.preventDefault();
+                    alert('Please login first!');
+                    return false;
+                }
+                
+                // Verify the form URL is correct
+                const form = document.getElementById('upload-form');
+                const uploadUrl = form.getAttribute('hx-post');
+                console.log('Form upload URL:', uploadUrl);
+                
+                if (!uploadUrl || uploadUrl === '' || uploadUrl.includes('localhost:8000')) {
+                    console.log('Invalid upload URL, fixing it...');
+                    const correctUrl = CONFIG.getUploadUrl();
+                    
+                    // Aggressively reset the form attributes
+                    form.removeAttribute('hx-post');
+                    form.setAttribute('hx-post', correctUrl);
+                    form.setAttribute('action', correctUrl);
+                    
+                    if (window.htmx) {
+                        htmx.process(form);
+                    }
+                    console.log('Upload URL corrected to:', correctUrl);
+                }
+                
+                // Double-check the URL before proceeding
+                const finalUrl = form.getAttribute('hx-post');
+                console.log('Final form URL before upload:', finalUrl);
+                if (!finalUrl || !finalUrl.includes('localhost:3000')) {
+                    console.error('CRITICAL: Form URL is still wrong!', finalUrl);
+                    e.preventDefault();
+                    alert('Error: Upload URL not set correctly. Please refresh the page and try again.');
+                    return false;
+                }
+                
+                console.log('File selected:', fileInput.files[0].name);
+                console.log('Access token available, proceeding with HTMX upload...');
+                // Let HTMX handle the rest
+            });
+            
+            // Check if we're returning from OAuth callback
+            const urlParams = new URLSearchParams(window.location.search);
+            console.log('URL params:', urlParams.toString());
+            if (urlParams.has('code') || urlParams.has('error')) {
+                console.log('OAuth callback detected');
+                handleOAuthCallback();
+            } else {
+                console.log('Normal page load, showing login');
+                // Show login button
+                document.getElementById('auth-section').style.display = 'block';
+            }
         });
     </script>
 </body>
