@@ -44,3 +44,22 @@ jobs:
             exit 1
           fi
         done
+        
+    - name: Check YAML formatting
+      run: |
+        echo "Checking YAML formatting..."
+        
+        # Check docker-compose.yml formatting
+        if [ -f "docker-compose.yml" ]; then
+          # Basic YAML syntax check
+          python3 -c "
+import yaml
+try:
+    with open('docker-compose.yml', 'r') as f:
+        yaml.safe_load(f)
+    print('✅ docker-compose.yml is valid YAML')
+except Exception as e:
+    print(f'❌ docker-compose.yml has YAML errors: {e}')
+    exit(1)
+"
+        fi
