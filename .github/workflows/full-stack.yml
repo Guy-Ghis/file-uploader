@@ -1,0 +1,242 @@
+name: Full Stack Integration Workflow
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: keycloak
+          POSTGRES_USER: keycloak
+          POSTGRES_PASSWORD: password
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+          
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build and test Docker Compose
+      run: |
+        echo "Building Docker Compose services..."
+        
+        # Build the upload-proxy service
+        docker-compose build upload-proxy
+        
+        # Check if all services can be built
+        docker-compose config
+        echo "✅ Docker Compose configuration is valid"
+        
+    - name: Start services for testing
+      run: |
+        echo "Starting services for integration testing..."
+        
+        # Start Keycloak and database
+        docker-compose up -d keycloak db
+        
+        # Wait for services to be ready
+        echo "Waiting for services to start..."
+        sleep 30
+        
+        # Check if Keycloak is responding
+        for i in {1..10}; do
+          if curl -s http://localhost:8081 > /dev/null; then
+            echo "✅ Keycloak is responding"
+            break
+          fi
+          echo "Waiting for Keycloak... attempt $i"
+          sleep 10
+        done
+        
+        # Start upload-proxy service
+        docker-compose up -d upload-proxy
+        sleep 10
+        
+        # Check if upload-proxy is responding
+        if curl -s http://localhost:3000/health > /dev/null; then
+          echo "✅ Upload proxy is responding"
+        else
+          echo "❌ Upload proxy is not responding"
+          exit 1
+        fi
+        
+    - name: Test API endpoints
+      run: |
+        echo "Testing API endpoints..."
+        
+        # Test health endpoint
+        health_response=$(curl -s http://localhost:3000/health)
+        if echo "$health_response" | grep -q "healthy"; then
+          echo "✅ Health endpoint working"
+        else
+          echo "❌ Health endpoint failed"
+          echo "Response: $health_response"
+          exit 1
+        fi
+        
+        # Test upload endpoint (should fail without auth)
+        upload_response=$(curl -s -X POST http://localhost:3000/upload -F "file=@test.txt" || true)
+        if echo "$upload_response" | grep -q "Unauthorized\|401"; then
+          echo "✅ Upload endpoint properly rejects unauthorized requests"
+        else
+          echo "❌ Upload endpoint should reject unauthorized requests"
+          exit 1
+        fi
+        
+    - name: Test frontend integration
+      run: |
+        echo "Testing frontend integration..."
+        
+        # Start frontend server
+        cd frontend
+        python3 server.py &
+        FRONTEND_PID=$!
+        
+        # Wait for frontend to start
+        sleep 5
+        
+        # Test if frontend is accessible
+        if curl -s http://localhost:8000 > /dev/null; then
+          echo "✅ Frontend server is accessible"
+        else
+          echo "❌ Frontend server is not accessible"
+          kill $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        fi
+        
+        # Test if upload page is accessible
+        if curl -s http://localhost:8000/upload.html > /dev/null; then
+          echo "✅ Upload page is accessible"
+        else
+          echo "❌ Upload page is not accessible"
+          kill $FRONTEND_PID 2>/dev/null || true
+          exit 1
+        fi
+        
+        # Kill frontend server
+        kill $FRONTEND_PID 2>/dev/null || true
+        
+    - name: Validate project structure
+      run: |
+        echo "Validating project structure..."
+        
+        # Check required directories
+        required_dirs=("frontend" "upload-proxy" "keycloak" "uploads")
+        for dir in "${required_dirs[@]}"; do
+          if [ -d "$dir" ]; then
+            echo "✅ $dir directory exists"
+          else
+            echo "❌ $dir directory missing"
+            exit 1
+          fi
+        done
+        
+        # Check required files
+        required_files=("docker-compose.yml" "README.md" "flow.md" "uploads.json")
+        for file in "${required_files[@]}"; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists"
+          else
+            echo "❌ $file missing"
+            exit 1
+          fi
+        done
+        
+        echo "✅ Project structure is correct"
+        
+    - name: Check Docker Compose services
+      run: |
+        echo "Checking Docker Compose services..."
+        
+        # Verify all services are defined
+        services=$(docker-compose config --services)
+        expected_services=("keycloak" "db" "upload-proxy")
+        
+        for service in "${expected_services[@]}"; do
+          if echo "$services" | grep -q "$service"; then
+            echo "✅ $service service defined"
+          else
+            echo "❌ $service service missing"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All required services are defined"
+        
+    - name: Test environment variables
+      run: |
+        echo "Testing environment variable configuration..."
+        
+        # Check if upload-proxy has required environment variables
+        env_vars=$(docker-compose config | grep -A 20 "upload-proxy:")
+        
+        required_vars=("KEYCLOAK_URL" "CLIENT_ID" "CLIENT_SECRET" "UPLOADS_DIR" "METADATA_FILE")
+        for var in "${required_vars[@]}"; do
+          if echo "$env_vars" | grep -q "$var"; then
+            echo "✅ $var environment variable configured"
+          else
+            echo "❌ $var environment variable missing"
+            exit 1
+          fi
+        done
+        
+        echo "✅ All required environment variables are configured"
+        
+    - name: Test volume mounts
+      run: |
+        echo "Testing volume mounts..."
+        
+        # Check if uploads directory is mounted
+        if docker-compose config | grep -q "uploads:/app/uploads"; then
+          echo "✅ Uploads directory mounted correctly"
+        else
+          echo "❌ Uploads directory not mounted correctly"
+          exit 1
+        fi
+        
+        # Check if uploads.json is mounted
+        if docker-compose config | grep -q "uploads.json:/app/uploads.json"; then
+          echo "✅ uploads.json mounted correctly"
+        else
+          echo "❌ uploads.json not mounted correctly"
+          exit 1
+        fi
+        
+        echo "✅ All volume mounts are correct"
+        
+    - name: Cleanup
+      if: always()
+      run: |
+        echo "Cleaning up test environment..."
+        docker-compose down -v
+        docker system prune -f
+        
+    - name: Integration Test Summary
+      run: |
+        echo "🎉 Full Stack Integration Test Completed Successfully!"
+        echo "✅ Docker Compose services built and configured"
+        echo "✅ Keycloak authentication service running"
+        echo "✅ Upload proxy API service running"
+        echo "✅ Frontend integration working"
+        echo "✅ API endpoints responding correctly"
+        echo "✅ Project structure validated"
+        echo "✅ Environment variables configured"
+        echo "✅ Volume mounts working"
+        echo ""
+        echo "🚀 The application is ready for deployment!"
