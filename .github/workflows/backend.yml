@@ -44,3 +44,10 @@ jobs:
           echo "❌ Upload endpoint missing"
           exit 1
         fi
+        
+    - name: Check Rust formatting
+      run: |
+        cd upload-proxy
+        echo "Checking Rust formatting..."
+        cargo fmt -- --check
+        echo "✅ Rust code is properly formatted"
