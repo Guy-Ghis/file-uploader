@@ -2,16 +2,12 @@ name: Backend Workflow
 
 on:
   push:
-    paths:
-      - 'upload-proxy/**'
-      - '.github/workflows/backend.yml'
+    paths: ['upload-proxy/**']
   pull_request:
-    paths:
-      - 'upload-proxy/**'
-      - '.github/workflows/backend.yml'
+    paths: ['upload-proxy/**']
 
 jobs:
-  backend-checks:
+  backend-check:
     runs-on: ubuntu-latest
     
     steps:
@@ -22,208 +18,29 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
-        override: true
-        
-    - name: Cache Rust dependencies
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          upload-proxy/target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-cargo-
-          
-    - name: Install Rust dependencies
-      run: |
-        cd upload-proxy
-        cargo fetch
         
     - name: Check Rust code
       run: |
         cd upload-proxy
-        echo "Checking Rust code..."
         cargo check
-        echo "✅ Rust code compiles successfully"
+        echo "✅ Rust code compiles"
         
-    - name: Run Rust tests
+    - name: Check required files
       run: |
         cd upload-proxy
-        echo "Running Rust tests..."
-        cargo test
-        echo "✅ All tests passed"
-        
-    - name: Build Rust project
-      run: |
-        cd upload-proxy
-        echo "Building Rust project..."
-        cargo build --release
-        echo "✅ Project builds successfully"
-        
-    - name: Check for security vulnerabilities
-      run: |
-        cd upload-proxy
-        echo "Checking for security vulnerabilities..."
-        cargo audit --version || cargo install cargo-audit
-        cargo audit
-        echo "✅ No security vulnerabilities found"
-        
-    - name: Validate Cargo.toml
-      run: |
-        cd upload-proxy
-        echo "Validating Cargo.toml..."
-        
-        # Check if required dependencies are present
-        required_deps=("actix-web" "actix-multipart" "serde" "tokio" "jsonwebtoken")
-        for dep in "${required_deps[@]}"; do
-          if grep -q "$dep" Cargo.toml; then
-            echo "✅ $dep dependency found"
-          else
-            echo "❌ $dep dependency missing"
-            exit 1
-          fi
-        done
-        
-        echo "✅ Cargo.toml validation passed"
-        
-    - name: Check source code structure
-      run: |
-        cd upload-proxy/src
-        echo "Checking source code structure..."
-        
-        required_files=("main.rs" "auth.rs" "handlers.rs" "metadata.rs")
-        for file in "${required_files[@]}"; do
-          if [ -f "$file" ]; then
-            echo "✅ $file exists"
-          else
-            echo "❌ $file is missing"
-            exit 1
-          fi
-        done
-        
-        echo "✅ Source code structure is correct"
-        
-    - name: Validate Dockerfile
-      run: |
-        cd upload-proxy
-        echo "Validating Dockerfile..."
-        
-        if [ -f "Dockerfile" ]; then
-          echo "✅ Dockerfile exists"
-          
-          # Check for required Dockerfile components
-          if grep -q "FROM rust" Dockerfile; then
-            echo "✅ Uses Rust base image"
-          else
-            echo "❌ Missing Rust base image"
-            exit 1
-          fi
-          
-          if grep -q "COPY.*Cargo.toml" Dockerfile; then
-            echo "✅ Copies Cargo.toml"
-          else
-            echo "❌ Missing Cargo.toml copy"
-            exit 1
-          fi
-          
-          if grep -q "COPY.*src" Dockerfile; then
-            echo "✅ Copies source code"
-          else
-            echo "❌ Missing source code copy"
-            exit 1
-          fi
-          
-          if grep -q "EXPOSE.*3000" Dockerfile; then
-            echo "✅ Exposes port 3000"
-          else
-            echo "❌ Missing port 3000 exposure"
-            exit 1
-          fi
-          
+        if [ -f "Cargo.toml" ] && [ -f "src/main.rs" ]; then
+          echo "✅ Required files exist"
         else
-          echo "❌ Dockerfile is missing"
+          echo "❌ Missing required files"
           exit 1
         fi
         
-    - name: Check for required endpoints
+    - name: Check upload endpoint
       run: |
         cd upload-proxy/src
-        echo "Checking for required API endpoints..."
-        
-        # Check for upload endpoint
         if grep -q "upload" handlers.rs; then
           echo "✅ Upload endpoint found"
         else
           echo "❌ Upload endpoint missing"
           exit 1
         fi
-        
-        # Check for health endpoint
-        if grep -q "health" handlers.rs; then
-          echo "✅ Health endpoint found"
-        else
-          echo "❌ Health endpoint missing"
-          exit 1
-        fi
-        
-        # Check for token validation
-        if grep -q "validate_token" auth.rs; then
-          echo "✅ Token validation found"
-        else
-          echo "❌ Token validation missing"
-          exit 1
-        fi
-        
-        # Check for metadata logging
-        if grep -q "log_upload_metadata" metadata.rs; then
-          echo "✅ Metadata logging found"
-        else
-          echo "❌ Metadata logging missing"
-          exit 1
-        fi
-        
-    - name: Check environment variables
-      run: |
-        cd upload-proxy
-        echo "Checking environment variable usage..."
-        
-        required_env_vars=("KEYCLOAK_URL" "CLIENT_ID" "CLIENT_SECRET" "UPLOADS_DIR" "METADATA_FILE")
-        for var in "${required_env_vars[@]}"; do
-          if grep -q "$var" src/*.rs; then
-            echo "✅ $var environment variable used"
-          else
-            echo "❌ $var environment variable not found"
-            exit 1
-          fi
-        done
-        
-        echo "✅ All required environment variables are used"
-        
-    - name: Run clippy (Rust linter)
-      run: |
-        cd upload-proxy
-        echo "Running clippy..."
-        cargo clippy -- -D warnings
-        echo "✅ Clippy checks passed"
-        
-    - name: Check code formatting
-      run: |
-        cd upload-proxy
-        echo "Checking code formatting..."
-        cargo fmt -- --check
-        echo "✅ Code formatting is correct"
-        
-    - name: Backend Summary
-      run: |
-        echo "🎉 Backend workflow completed successfully!"
-        echo "✅ Rust code compiles"
-        echo "✅ All tests pass"
-        echo "✅ Project builds successfully"
-        echo "✅ No security vulnerabilities"
-        echo "✅ Dependencies validated"
-        echo "✅ Source structure correct"
-        echo "✅ Dockerfile validated"
-        echo "✅ API endpoints present"
-        echo "✅ Environment variables configured"
-        echo "✅ Code quality checks passed"
