@@ -1,0 +1,53 @@
+name: Backend Workflow
+
+on:
+  push:
+    paths: ['upload-proxy/**']
+  pull_request:
+    paths: ['upload-proxy/**']
+
+jobs:
+  backend-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        
+    - name: Check Rust code
+      run: |
+        cd upload-proxy
+        cargo check
+        echo "✅ Rust code compiles"
+        
+    - name: Check required files
+      run: |
+        cd upload-proxy
+        if [ -f "Cargo.toml" ] && [ -f "src/main.rs" ]; then
+          echo "✅ Required files exist"
+        else
+          echo "❌ Missing required files"
+          exit 1
+        fi
+        
+    - name: Check upload endpoint
+      run: |
+        cd upload-proxy/src
+        if grep -q "upload" handlers.rs; then
+          echo "✅ Upload endpoint found"
+        else
+          echo "❌ Upload endpoint missing"
+          exit 1
+        fi
+        
+    - name: Check Rust formatting
+      run: |
+        cd upload-proxy
+        echo "Checking Rust formatting..."
+        cargo fmt -- --check
+        echo "✅ Rust code is properly formatted"

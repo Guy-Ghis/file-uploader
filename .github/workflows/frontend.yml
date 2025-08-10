@@ -1,0 +1,63 @@
+name: Frontend Workflow
+
+on:
+  push:
+    paths: ['frontend/**']
+  pull_request:
+    paths: ['frontend/**']
+
+jobs:
+  frontend-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check HTML files exist
+      run: |
+        cd frontend
+        if [ -f "index.html" ] && [ -f "upload.html" ]; then
+          echo "✅ HTML files found"
+        else
+          echo "❌ Missing HTML files"
+          exit 1
+        fi
+        
+    - name: Check HTMX usage
+      run: |
+        cd frontend
+        if grep -q "htmx.org" *.html; then
+          echo "✅ HTMX is included"
+        else
+          echo "❌ HTMX not found"
+          exit 1
+        fi
+        
+    - name: Check upload form
+      run: |
+        cd frontend
+        if grep -q "multipart/form-data" *.html; then
+          echo "✅ Upload form configured"
+        else
+          echo "❌ Upload form not found"
+          exit 1
+        fi
+        
+    - name: Check HTML formatting
+      run: |
+        cd frontend
+        echo "Checking HTML formatting..."
+        
+        # Basic check for proper HTML structure
+        for file in *.html; do
+          if [ -f "$file" ]; then
+            # Check if file has proper DOCTYPE and html tags
+            if grep -q "<!DOCTYPE html>" "$file" && grep -q "<html" "$file" && grep -q "</html>" "$file"; then
+              echo "✅ $file has proper HTML structure"
+            else
+              echo "❌ $file missing proper HTML structure"
+              exit 1
+            fi
+          fi
+        done

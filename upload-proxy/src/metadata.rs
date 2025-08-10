@@ -29,7 +29,7 @@ pub fn log_upload_metadata(
     metadata_file_path: &str,
 ) -> Result<(), actix_web::Error> {
     log::info!("Logging upload metadata for file: {}", filename);
-    
+
     let metadata = UploadMetadata {
         filename: filename.clone(),
         user: user.clone(),
@@ -44,7 +44,11 @@ pub fn log_upload_metadata(
             actix_web::error::ErrorInternalServerError(format!("Failed to read metadata: {}", e))
         })?;
         serde_json::from_str::<Vec<UploadMetadata>>(&content).unwrap_or_else(|e| {
-            log::warn!("Failed to parse {}, creating new: {}", metadata_file_path, e);
+            log::warn!(
+                "Failed to parse {}, creating new: {}",
+                metadata_file_path,
+                e
+            );
             vec![]
         })
     } else {
@@ -53,7 +57,7 @@ pub fn log_upload_metadata(
 
     // Append new metadata entry
     uploads.push(metadata);
-    
+
     // Write updated metadata back to file
     let metadata_file = OpenOptions::new()
         .write(true)
@@ -62,9 +66,12 @@ pub fn log_upload_metadata(
         .open(metadata_file_path)
         .map_err(|e| {
             log::error!("Failed to open {} for writing: {}", metadata_file_path, e);
-            actix_web::error::ErrorInternalServerError(format!("Failed to open metadata file: {}", e))
+            actix_web::error::ErrorInternalServerError(format!(
+                "Failed to open metadata file: {}",
+                e
+            ))
         })?;
-    
+
     serde_json::to_writer_pretty(metadata_file, &uploads).map_err(|e| {
         log::error!("Failed to write metadata: {}", e);
         actix_web::error::ErrorInternalServerError(format!("Failed to write metadata: {}", e))
@@ -75,11 +82,7 @@ pub fn log_upload_metadata(
 }
 
 /// Creates a successful upload response
-pub fn create_upload_response(
-    filename: String,
-    user: String,
-    size_bytes: u64,
-) -> UploadResponse {
+pub fn create_upload_response(filename: String, user: String, size_bytes: u64) -> UploadResponse {
     UploadResponse {
         status: "success".to_string(),
         message: "File uploaded successfully".to_string(),

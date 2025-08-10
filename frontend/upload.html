@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Upload | File Upload System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script>
+    // Minimal htmx extension: ensure Authorization header is attached
+    htmx.defineExtension('upload', {
+      onEvent: function (name, evt) {
+        if (name === 'htmx:beforeRequest') {
+          var el = evt.detail.elt;
+          if (el && el.id === 'upload-form') {
+            if (!evt.detail.headers) evt.detail.headers = {};
+            var token = sessionStorage.getItem('access_token');
+            if (token) {
+              evt.detail.headers['Authorization'] = 'Bearer ' + token;
+              console.log('Authorization header set');
+            }
+          }
+        }
+      }
+    });
+  </script>
+  <script src="config.js"></script>
+  <style>
+    :root {
+      --panel: #11182d; --panel-border:#1f2b48; --text:#e6ecff; --muted:#9fb0d3;
+      --primary:#4f7cff; --primary-600:#3c63d6; --radius:12px; --shadow:0 10px 30px rgba(0,0,0,.35);
+      --success-bg:#0f3322; --success-border:#1e7a53; --error-bg:#331616; --error-border:#7a2a2a;
+    }
+    html,body{height:100%}
+    body{margin:0;font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);
+      background: radial-gradient(1200px 600px at 10% -10%, #1a2a6c33, transparent 60%),
+                  radial-gradient(900px 500px at 110% 10%, #b21f1f22, transparent 50%),
+                  linear-gradient(180deg, #0a0f1e 0%, #090d1a 100%); overflow-x:hidden}
+    .container{max-width:1100px;margin:0 auto;padding:42px 24px 80px}
+    .app-header{position:fixed;top:14px;right:18px;z-index:20}
+    .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;font-weight:600;color:#fff;cursor:pointer;
+      transition:transform .06s ease, background .2s ease, box-shadow .2s ease;box-shadow:0 6px 18px rgba(79,124,255,.25)}
+    .btn:active{transform:translateY(1px) scale(.99)}
+    .btn-primary{background:var(--primary)} .btn-primary:hover{background:var(--primary-600)}
+    .btn-secondary{background:#233158;box-shadow:0 6px 18px rgba(35,49,88,.25)}
+    .title{font-size:28px;font-weight:700;letter-spacing:.3px;margin:8px 0 28px;background:linear-gradient(90deg,#a0b4ff,#e6ecff);
+      -webkit-background-clip:text;background-clip:text;color:transparent}
+    .card{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:38px 30px;
+      box-shadow:var(--shadow);backdrop-filter:blur(6px);margin:18px 0}
+    .row{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:start}
+    @media (max-width: 900px){.row{grid-template-columns:1fr}}
+    input[type=file]{width:100%;color:var(--muted);background:#0e1530;border:1px dashed #2b3a6a;border-radius:14px;padding:26px;font-size:16px}
+    .progress{margin-top:10px}
+    .progress-bar{width:100%;height:14px;background:#0e1530;border:1px solid #213264;border-radius:999px;overflow:hidden}
+    .progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#4f7cff,#8aa4ff);transition:width .25s ease-in-out}
+    .progress-text{color:var(--muted);font-size:12px;margin:8px 0 6px}
+    .status{padding:12px 14px;margin:12px 0;border-radius:10px;border:1px solid transparent}
+    .status.success{background:var(--success-bg);border-color:var(--success-border)}
+    .status.error{background:var(--error-bg);border-color:var(--error-border)}
+    .bubbles{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+    .bubbles span{position:absolute;display:block;width:var(--s,14px);height:var(--s,14px);border-radius:999px;
+      background:radial-gradient(#a0b4ff22,#a0b4ff00 70%);filter:blur(2px);animation:drift var(--t,18s) linear infinite}
+    @keyframes drift{0%{transform:translate(var(--x,0),var(--y,0)) scale(1);opacity:.25}50%{transform:translate(calc(var(--x,0) * -1),calc(var(--y,0) * -1)) scale(1.12);opacity:.18}100%{transform:translate(var(--x,0),var(--y,0)) scale(1);opacity:.25}}
+  </style>
+</head>
+<body>
+  <!-- floating bubbles background -->
+  <div class="bubbles" aria-hidden="true">
+    <span style="left:6%; top:12%; --x:80px; --y:-120px; --s:18px; --t:19s"></span>
+    <span style="left:22%; top:76%; --x:-140px; --y:-60px; --s:12px; --t:23s"></span>
+    <span style="left:38%; top:28%; --x:120px; --y:80px; --s:22px; --t:21s"></span>
+    <span style="left:52%; top:64%; --x:-90px; --y:120px; --s:16px; --t:20s"></span>
+    <span style="left:71%; top:18%; --x:-130px; --y:90px; --s:14px; --t:26s"></span>
+    <span style="left:84%; top:52%; --x:110px; --y:-110px; --s:20px; --t:24s"></span>
+  </div>
+
+  <div class="container">
+    <div class="app-header"><button class="btn btn-secondary" onclick="logout()">Logout</button></div>
+    <div class="title">Upload your file</div>
+
+    <div class="row">
+      <div class="card">
+        <form id="upload-form" hx-post="http://localhost:3000/upload" hx-target="#upload-response" hx-ext="upload" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+          <input type="file" name="file" id="file-input" required>
+          <button type="submit" class="btn btn-primary" id="upload-btn" style="margin-top:14px;min-width:220px;font-size:16px">Upload File</button>
+
+          <div id="upload-progress" class="hidden">
+            <div class="progress-text">Uploading... <span id="progress-percent">0%</span></div>
+            <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div id="upload-response" class="muted">Your upload result will appear here.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Guard: require token to be present
+    const token = sessionStorage.getItem('access_token');
+    if (!token) { window.location.href = 'index.html'; }
+
+    // Set upload URL from config on load
+    document.addEventListener('DOMContentLoaded', function(){
+      const form = document.getElementById('upload-form');
+      if (typeof CONFIG !== 'undefined') {
+        form.setAttribute('hx-post', CONFIG.getUploadUrl());
+      }
+    });
+
+    // Progress handlers (works if htmx upload extension features available)
+    document.body.addEventListener('htmx:upload:progress', function(evt){
+      const p = Math.round((evt.detail.loaded/evt.detail.total)*100);
+      document.getElementById('progress-bar-fill').style.width = p + '%';
+      document.getElementById('progress-percent').textContent = p + '%';
+      document.getElementById('upload-progress').classList.remove('hidden');
+    });
+
+    document.body.addEventListener('htmx:beforeRequest', function(evt){
+      if (evt.detail.elt.id === 'upload-form') {
+        document.getElementById('upload-btn').disabled = true;
+        document.getElementById('upload-progress').classList.remove('hidden');
+      }
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function(evt){
+      if (evt.detail.elt.id === 'upload-form') {
+        if (evt.detail.xhr && evt.detail.xhr.status === 401) {
+          // Token likely expired/invalid → force re-login
+          alert('Session expired. Please login again.');
+          logout();
+          return;
+        }
+        document.getElementById('upload-btn').disabled = false;
+        document.getElementById('upload-progress').classList.add('hidden');
+        document.getElementById('progress-bar-fill').style.width = '0%';
+        document.getElementById('progress-percent').textContent = '0%';
+      }
+    });
+
+    document.body.addEventListener('htmx:afterSwap', function(evt){
+      if (evt.detail.target.id === 'upload-response') {
+        const form = document.getElementById('upload-form');
+        form.reset();
+      }
+    });
+
+    function logout(){
+      sessionStorage.removeItem('access_token');
+      sessionStorage.removeItem('oauth_state');
+      sessionStorage.removeItem('code_verifier');
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>
+
+

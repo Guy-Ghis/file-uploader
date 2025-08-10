@@ -27,12 +27,16 @@ pub async fn validate_token(token: &str) -> Result<String, actix_web::Error> {
     // Note: CLIENT_ID and CLIENT_SECRET are loaded for completeness but not used in JWT validation
     let _client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
     let _client_secret = env::var("CLIENT_SECRET").expect("CLIENT_SECRET must be set");
-    let jwt_audience = env::var("JWT_AUDIENCE").unwrap_or_else(|_| "account,upload-client".to_string());
+    let jwt_audience =
+        env::var("JWT_AUDIENCE").unwrap_or_else(|_| "account,upload-client".to_string());
 
     // Fetch Keycloak's public key
-    let jwks_url = format!("{}/realms/{}/protocol/openid-connect/certs", keycloak_url, keycloak_realm);
+    let jwks_url = format!(
+        "{}/realms/{}/protocol/openid-connect/certs",
+        keycloak_url, keycloak_realm
+    );
     log::info!("Fetching JWKS from: {}", jwks_url);
-    
+
     let client = reqwest::Client::new();
     let jwks: Value = client
         .get(&jwks_url)
@@ -48,32 +52,28 @@ pub async fn validate_token(token: &str) -> Result<String, actix_web::Error> {
             log::error!("Failed to parse JWKS: {}", e);
             actix_web::error::ErrorInternalServerError(format!("Failed to parse JWKS: {}", e))
         })?;
-        
-    let jwk = jwks["keys"][0]["n"]
-        .as_str()
-        .ok_or_else(|| {
-            log::error!("Invalid JWK: missing 'n' field");
-            actix_web::error::ErrorUnauthorized("Invalid JWK")
-        })?;
+
+    let jwk = jwks["keys"][0]["n"].as_str().ok_or_else(|| {
+        log::error!("Invalid JWK: missing 'n' field");
+        actix_web::error::ErrorUnauthorized("Invalid JWK")
+    })?;
 
     // Decode and validate JWT
-    let decoding_key = DecodingKey::from_rsa_components(jwk, "AQAB")
-        .map_err(|e| {
-            log::error!("Failed to create decoding key: {}", e);
-            actix_web::error::ErrorUnauthorized(format!("Failed to create decoding key: {}", e))
-        })?;
-        
+    let decoding_key = DecodingKey::from_rsa_components(jwk, "AQAB").map_err(|e| {
+        log::error!("Failed to create decoding key: {}", e);
+        actix_web::error::ErrorUnauthorized(format!("Failed to create decoding key: {}", e))
+    })?;
+
     let mut validation = Validation::new(jsonwebtoken::Algorithm::RS256);
     let audiences: Vec<&str> = jwt_audience.split(',').map(|s| s.trim()).collect();
     validation.set_audience(&audiences);
-    
+
     log::info!("Attempting to decode token with audiences: {:?}", audiences);
-    let token_data = decode::<Claims>(token, &decoding_key, &validation)
-        .map_err(|e| {
-            log::error!("JWT validation failed: {}", e);
-            log::error!("Token: {}", token);
-            actix_web::error::ErrorUnauthorized(format!("Invalid token: {}", e))
-        })?;
+    let token_data = decode::<Claims>(token, &decoding_key, &validation).map_err(|e| {
+        log::error!("JWT validation failed: {}", e);
+        log::error!("Token: {}", token);
+        actix_web::error::ErrorUnauthorized(format!("Invalid token: {}", e))
+    })?;
 
     log::info!("Token validated for user: {}", token_data.claims.sub);
     Ok(token_data.claims.sub)
