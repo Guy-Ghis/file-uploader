@@ -43,3 +43,21 @@ jobs:
           echo "❌ Upload form not found"
           exit 1
         fi
+        
+    - name: Check HTML formatting
+      run: |
+        cd frontend
+        echo "Checking HTML formatting..."
+        
+        # Basic check for proper HTML structure
+        for file in *.html; do
+          if [ -f "$file" ]; then
+            # Check if file has proper DOCTYPE and html tags
+            if grep -q "<!DOCTYPE html>" "$file" && grep -q "<html" "$file" && grep -q "</html>" "$file"; then
+              echo "✅ $file has proper HTML structure"
+            else
+              echo "❌ $file missing proper HTML structure"
+              exit 1
+            fi
+          fi
+        done
