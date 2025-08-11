@@ -81,7 +81,7 @@
 
     <div class="row">
       <div class="card">
-        <form id="upload-form" hx-post="http://localhost:3000/upload" hx-target="#upload-response" hx-ext="upload" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+        <form id="upload-form" hx-post="http://localhost:3000/api/upload" hx-target="#upload-response" hx-ext="upload" hx-encoding="multipart/form-data" enctype="multipart/form-data">
           <input type="file" name="file" id="file-input" required>
           <button type="submit" class="btn btn-primary" id="upload-btn" style="margin-top:14px;min-width:220px;font-size:16px">Upload File</button>
 
@@ -106,8 +106,24 @@
     // Set upload URL from config on load
     document.addEventListener('DOMContentLoaded', function(){
       const form = document.getElementById('upload-form');
+      console.log('Setting upload URL...');
       if (typeof CONFIG !== 'undefined') {
-        form.setAttribute('hx-post', CONFIG.getUploadUrl());
+        const uploadUrl = CONFIG.getUploadUrl();
+        console.log('Upload URL from config:', uploadUrl);
+        form.setAttribute('hx-post', uploadUrl);
+        console.log('Form hx-post attribute set to:', form.getAttribute('hx-post'));
+      } else {
+        console.error('CONFIG is undefined!');
+      }
+
+      // Ensure Authorization header is set via hx-headers as a fallback
+      const tokenFromSession = sessionStorage.getItem('access_token');
+      if (tokenFromSession) {
+        const headersJson = JSON.stringify({ Authorization: 'Bearer ' + tokenFromSession });
+        form.setAttribute('hx-headers', headersJson);
+        console.log('Form hx-headers set');
+      } else {
+        console.warn('No access_token in sessionStorage when initializing upload form');
       }
     });
 
@@ -121,6 +137,9 @@
 
     document.body.addEventListener('htmx:beforeRequest', function(evt){
       if (evt.detail.elt.id === 'upload-form') {
+        console.log('Upload request starting...');
+        console.log('Request URL:', evt.detail.xhr.url);
+        console.log('Request method:', evt.detail.xhr.method);
         document.getElementById('upload-btn').disabled = true;
         document.getElementById('upload-progress').classList.remove('hidden');
       }

@@ -1,11 +1,13 @@
 use actix_cors::Cors;
 use actix_web::{middleware, web, App, HttpServer};
+use actix_web_httpauth::middleware::HttpAuthentication;
 
 mod auth;
 mod handlers;
 mod metadata;
 
-use handlers::{exchange_token, health_check, upload_file};
+use auth::validator;
+use handlers::{exchange_token, health_check, upload_file, refresh_token};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -36,8 +38,13 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::Logger::default())
             .wrap(cors)
             .route("/health", web::get().to(health_check))
-            .route("/upload", web::post().to(upload_file))
             .route("/token", web::post().to(exchange_token))
+            .route("/refresh", web::post().to(refresh_token))
+            .service(
+                web::scope("/api")
+                    .wrap(HttpAuthentication::bearer(validator))
+                    .route("/upload", web::post().to(upload_file))
+            )
     })
     .bind(format!("0.0.0.0:{}", backend_port))?
     .run()

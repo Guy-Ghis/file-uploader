@@ -1,6 +1,5 @@
 use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse, Result as ActixResult};
-use actix_web_httpauth::extractors::bearer::BearerAuth;
 use chrono::Utc;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
@@ -8,7 +7,6 @@ use std::path::Path;
 use std::{env, fs};
 use tokio::io::AsyncWriteExt;
 
-use crate::auth::validate_token;
 use crate::metadata::{create_upload_response, log_upload_metadata};
 
 #[derive(Serialize)]
@@ -31,25 +29,15 @@ pub async fn health_check() -> ActixResult<HttpResponse> {
 /// File upload handler - implements the complete assignment flow
 pub async fn upload_file(
     mut payload: Multipart,
-    auth: BearerAuth,
     _req: HttpRequest,
 ) -> Result<HttpResponse, actix_web::Error> {
     log::info!("=== UPLOAD HANDLER CALLED ===");
     log::info!("Starting file upload process");
     println!("=== BACKEND: Upload handler was called! ===");
 
-    // Step 1: Authorization Check - Validate JWT and get user
-    log::info!("Step 1: Validating JWT token");
-    let user = match validate_token(auth.token()).await {
-        Ok(user) => {
-            log::info!("Token validation successful for user: {}", user);
-            user
-        }
-        Err(e) => {
-            log::error!("Token validation failed: {:?}", e);
-            return Err(e);
-        }
-    };
+    // Step 1: Authorization Check - User is already validated by middleware
+    log::info!("Step 1: User already validated by middleware");
+    let user = "authenticated_user".to_string(); // We could extract this from the request if needed
 
     // Step 2: File Processing - Prepare upload directory
     log::info!("Step 2: Preparing file storage");
@@ -153,6 +141,11 @@ pub struct TokenResponse {
     pub expires_in: Option<u64>,
 }
 
+#[derive(Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
+}
+
 /// Token exchange endpoint - proxies token request to Keycloak
 pub async fn exchange_token(
     token_request: web::Json<TokenExchangeRequest>,
@@ -212,5 +205,50 @@ pub async fn exchange_token(
                 "error": "Failed to connect to Keycloak"
             })))
         }
+    }
+}
+
+/// Refresh token endpoint - exchanges refresh_token for a new access token
+pub async fn refresh_token(
+    req: web::Json<RefreshTokenRequest>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let keycloak_url = env::var("KEYCLOAK_URL").expect("KEYCLOAK_URL must be set");
+    let keycloak_realm = env::var("KEYCLOAK_REALM").unwrap_or_else(|_| "upload-realm".to_string());
+    let client_id = env::var("CLIENT_ID").expect("CLIENT_ID must be set");
+    let client_secret = env::var("CLIENT_SECRET").expect("CLIENT_SECRET must be set");
+
+    let token_url = format!(
+        "{}/realms/{}/protocol/openid-connect/token",
+        keycloak_url, keycloak_realm
+    );
+
+    let client = reqwest::Client::new();
+    let params = [
+        ("grant_type", "refresh_token"),
+        ("client_id", &client_id),
+        ("client_secret", &client_secret),
+        ("refresh_token", &req.refresh_token),
+    ];
+
+    match client.post(&token_url).form(&params).send().await {
+        Ok(response) => {
+            if response.status().is_success() {
+                match response.json::<serde_json::Value>().await {
+                    Ok(token_data) => Ok(HttpResponse::Ok().json(token_data)),
+                    Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+                        "error": format!("Failed to parse refresh response: {}", e)
+                    }))),
+                }
+            } else {
+                let text = response.text().await.unwrap_or_default();
+                Ok(HttpResponse::BadRequest().json(serde_json::json!({
+                    "error": "Token refresh failed",
+                    "details": text
+                })))
+            }
+        }
+        Err(e) => Ok(HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("Failed to connect to Keycloak: {}", e)
+        }))),
     }
 }
