@@ -7,9 +7,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/upload.js"></script>
   <script>
     // Minimal htmx extension: ensure Authorization header is attached
-    htmx.defineExtension('upload', {
+    htmx.defineExtension('auth', {
       onEvent: function (name, evt) {
         if (name === 'htmx:beforeRequest') {
           var el = evt.detail.elt;
@@ -120,24 +121,25 @@
   <div class="container">
     <div class="layout">
       <div class="panel">
-        <form id="upload-form" hx-post="http://localhost:3000/api/upload" hx-target="#upload-response" hx-ext="upload" hx-encoding="multipart/form-data" enctype="multipart/form-data">
-          <div id="dropzone" class="dropzone">
-            <div class="dropzone-inner">
-              <div class="dropzone-title">Drag & drop files here</div>
-              <div class="dropzone-sub">or click the button below to select files</div>
-              <div class="actions">
-                <label class="btn btn-secondary" for="file-input">Choose Files</label>
-                <button type="submit" class="btn btn-primary">Upload Files</button>
+        <form id="upload-form" hx-post="http://localhost:3000/api/upload" hx-target="#upload-response" hx-ext="upload,auth" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+            <div id="dropzone" class="dropzone">
+              <div class="dropzone-inner">
+                <div class="dropzone-title">Drag & drop files here</div>
+                <div class="dropzone-sub">or click the button below to select files</div>
+                <div class="actions">
+                  <label class="btn btn-secondary" for="file-input">Choose Files</label>
+                  <button type="submit" id="upload-btn" class="btn btn-primary">Upload Files</button>
+                </div>
+                <input type="file" name="file" id="file-input" required>
+                <div id="selected-file" class="file-size" style="margin-top:10px"></div>
               </div>
-              <input type="file" name="file" id="file-input" required>
             </div>
-          </div>
 
-          <div id="upload-progress" class="progress" style="display:none">
-            <div class="progress-text">Uploading... <span id="progress-percent">0%</span></div>
-            <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
-          </div>
-        </form>
+            <div id="upload-progress" class="progress" style="display:none">
+              <div class="progress-text">Uploading... <span id="progress-percent">0%</span></div>
+              <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+            </div>
+          </form>
 
         <div id="upload-response" class="status" style="margin-top:12px;color:var(--muted)">Your upload result will appear here.</div>
       </div>
@@ -178,12 +180,50 @@
       }
     });
 
-    // Progress handlers (works if htmx upload extension features available)
+    // Show selected filename
+    const fileInput = document.getElementById('file-input');
+    const selectedFileEl = document.getElementById('selected-file');
+    fileInput.addEventListener('change', function(){
+      if (fileInput.files && fileInput.files.length > 0) {
+        const f = fileInput.files[0];
+        const sizeKB = Math.max(1, Math.round(f.size/1024));
+        selectedFileEl.textContent = `${f.name} • ${sizeKB} KB`;
+      } else {
+        selectedFileEl.textContent = '';
+      }
+    });
+
+    // Drag & drop wiring to the hidden input
+    const dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('dragover'); });
+    dropzone.addEventListener('drop', function(e){
+      e.preventDefault(); dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        const event = new Event('change');
+        fileInput.dispatchEvent(event);
+      }
+    });
+
+    // htmx upload progress events
+    document.body.addEventListener('htmx:upload:beforeSend', function(){
+      document.getElementById('upload-progress').style.display = '';
+      document.getElementById('progress-bar-fill').style.width = '0%';
+      document.getElementById('progress-percent').textContent = '0%';
+    });
+
     document.body.addEventListener('htmx:upload:progress', function(evt){
       const p = Math.round((evt.detail.loaded/evt.detail.total)*100);
       document.getElementById('progress-bar-fill').style.width = p + '%';
       document.getElementById('progress-percent').textContent = p + '%';
-      document.getElementById('upload-progress').classList.remove('hidden');
+      document.getElementById('upload-progress').style.display = '';
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function(evt){
+      if (evt.detail.elt && evt.detail.elt.id === 'upload-form') {
+        document.getElementById('upload-progress').style.display = 'none';
+      }
     });
 
     document.body.addEventListener('htmx:beforeRequest', function(evt){
