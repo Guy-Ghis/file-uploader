@@ -2,11 +2,10 @@
 // This file reads environment variables and provides configuration for the frontend
 const CONFIG = {
     // Keycloak Configuration - using exact values from .env
-    KEYCLOAK_URL: 'http://10.72.220.223:8081',
+    KEYCLOAK_URL: 'http://localhost:8080',
     KEYCLOAK_REALM: 'upload-realm',
     CLIENT_ID: 'upload-client',
-    CLIENT_SECRET: 'dYhBaLvJ2vLQIZ487nZQCMWyVETwvOqj',
-    
+//    
     // Backend Configuration - using exact values from .env
     BACKEND_URL: 'http://localhost:3000',
     
