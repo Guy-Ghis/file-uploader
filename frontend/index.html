@@ -25,8 +25,8 @@
     <script src="config.js"></script>
     <style>
         :root {
-            --bg-start:#0f1724; --bg-end:#0b1220;
-            --panel:#151c2c; --panel-border:#1f2a40; --text:#e8eefc; --muted:#a7b6d6;
+            --bg-start:#ffffff; --bg-end:#ffffff;
+            --panel:#ffffff; --panel-border:#e6eaf2; --text:#0a0f1e; --muted:#5b6b88;
             --primary:#ff8a33; --primary-600:#e67622; --radius:14px; --shadow:0 12px 36px rgba(0,0,0,.35);
         }
         html, body { height: 100%; }
@@ -35,19 +35,20 @@
             font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
             color: var(--text);
             background:
-                radial-gradient(1200px 600px at 15% -10%, #2a3c6433, transparent 60%),
-                radial-gradient(900px 500px at 110% 10%, #1c2a4f22, transparent 50%),
-                linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
+                linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%),
+                linear-gradient(135deg, rgba(255,223,128,.35), rgba(255,223,128,0) 60%),
+                linear-gradient(225deg, rgba(150,200,255,.35), rgba(150,200,255,0) 60%),
+                linear-gradient(45deg, rgba(202,210,220,.30), rgba(202,210,220,0) 65%);
             overflow-x: hidden;
         }
-        .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #0e1526aa, #0e152688);backdrop-filter:blur(8px);border-bottom:1px solid #1c2640;z-index:50}
+        .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #ffffffcc, #ffffffbb);backdrop-filter:blur(8px);border-bottom:1px solid #e6eaf2;z-index:50}
         .titlebar-left{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
         .window-controls{display:flex;align-items:center;gap:8px}
-        .window-dot{width:10px;height:10px;border-radius:999px;background:#3a4a6d;border:1px solid #4b5e8d}
+        .window-dot{width:10px;height:10px;border-radius:999px;background:#cfd7e6;border:1px solid #d9e1ee}
 
         .container { max-width: 980px; margin: 0 auto; padding: 72px 24px 80px; }
         .center-stage { min-height: 70vh; display: grid; place-items: center; }
-        .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 28px 24px; box-shadow: var(--shadow); backdrop-filter: blur(6px); margin: 18px 0; }
+        .card { background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius); padding: 28px 24px; box-shadow: 0 12px 36px rgba(0,0,0,.08); backdrop-filter: saturate(110%) blur(4px); margin: 18px 0; }
         .muted { color: var(--muted); }
         .btn { appearance: none; border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 700; color: #0a0f1e; cursor: pointer; transition: transform .06s ease, background .2s ease, box-shadow .2s ease; box-shadow: 0 8px 20px rgba(255,138,51,.25); }
         .btn:active { transform: translateY(1px) scale(.99); }
