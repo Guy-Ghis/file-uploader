@@ -39,19 +39,19 @@
     body{
       margin:0;font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);
       background:
-        radial-gradient(220px 160px at 15% 12%, rgba(255,222,140,.35), transparent 60%),
-        radial-gradient(260px 180px at 85% 18%, rgba(150,200,255,.35), transparent 60%),
-        radial-gradient(300px 200px at 70% 80%, rgba(255,240,170,.25), transparent 60%),
-        linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
+        linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%),
+        linear-gradient(135deg, rgba(255,223,128,.35), rgba(255,223,128,0) 60%),
+        linear-gradient(225deg, rgba(150,200,255,.35), rgba(150,200,255,0) 60%),
+        linear-gradient(45deg, rgba(202,210,220,.30), rgba(202,210,220,0) 65%);
       overflow:hidden
     }
 
-    .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #0e1526aa, #0e152688);backdrop-filter:blur(8px);border-bottom:1px solid #1c2640;z-index:50}
+    .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #ffffffcc, #ffffffbb);backdrop-filter:blur(8px);border-bottom:1px solid #e6eaf2;z-index:50}
     .titlebar-left{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
     .window-controls{display:flex;align-items:center;gap:8px}
-    .window-dot{width:10px;height:10px;border-radius:999px;background:#3a4a6d;border:1px solid #4b5e8d}
-    .logout-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #2a3b60;color:var(--text);padding:8px 12px;border-radius:10px;cursor:pointer}
-    .logout-btn:hover{background:#1a2440}
+    .window-dot{width:10px;height:10px;border-radius:999px;background:#cfd7e6;border:1px solid #d9e1ee}
+    .logout-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #e1e7f2;color:#0a0f1e;padding:8px 12px;border-radius:10px;cursor:pointer}
+    .logout-btn:hover{background:#f4f6fb}
 
     .container{max-width:1200px;margin:0 auto;padding:72px 24px 28px}
     .stage{min-height:calc(100vh - 52px);display:grid;place-items:center}
