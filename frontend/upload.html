@@ -39,10 +39,10 @@
     body{
       margin:0;font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);
       background:
-        linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%),
-        linear-gradient(135deg, rgba(255,223,128,.35), rgba(255,223,128,0) 60%),
-        linear-gradient(225deg, rgba(150,200,255,.35), rgba(150,200,255,0) 60%),
-        linear-gradient(45deg, rgba(202,210,220,.30), rgba(202,210,220,0) 65%);
+        radial-gradient(900px 600px at 12% 8%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+        radial-gradient(700px 500px at 88% 12%, rgba(120,145,180,0.18), rgba(120,145,180,0) 60%),
+        radial-gradient(800px 550px at 50% 110%, rgba(26,36,60,0.40), rgba(26,36,60,0) 60%),
+        linear-gradient(180deg, #ccd0da 0%, #2055c6 100%);
       overflow:hidden
     }
 
@@ -123,7 +123,7 @@
                   <label class="btn btn-secondary" for="file-input">Choose Files</label>
                   <button type="submit" id="upload-btn" class="btn btn-primary">Upload Files</button>
                 </div>
-                <input type="file" name="file" id="file-input" required>
+          <input type="file" name="file" id="file-input" required>
                 <div id="selected-file" class="file-size" style="margin-top:10px"></div>
               </div>
             </div>
@@ -131,13 +131,13 @@
             <div id="upload-progress" class="progress">
               <div class="progress-text">Progress: <span id="progress-percent">0%</span></div>
               <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div></div>
-            </div>
-          </form>
+          </div>
+        </form>
 
           <div id="upload-response" class="status" style="margin-top:12px;color:var(--muted)">Your upload result will appear here.</div>
-        </div>
       </div>
     </div>
+  </div>
 
   <script>
     // Guard: require token to be present
