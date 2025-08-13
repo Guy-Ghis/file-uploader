@@ -39,7 +39,7 @@
                 radial-gradient(700px 500px at 88% 12%, rgba(120,145,180,0.18), rgba(120,145,180,0) 60%),
                 radial-gradient(800px 550px at 50% 110%, rgba(26,36,60,0.40), rgba(26,36,60,0) 60%),
                 linear-gradient(180deg, #ccd0da 0%, #2055c6 100%);
-                overflow-x: hidden;
+            overflow-x: hidden;
         }
         .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #ffffffcc, #ffffffbb);backdrop-filter:blur(8px);border-bottom:1px solid #e6eaf2;z-index:50}
         .titlebar-left{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
@@ -93,7 +93,7 @@
         <p class="muted">Authenticate with Keycloak to continue to the upload page.</p>
         <button class="btn btn-primary" style="justify-self:center; min-width: 240px; font-size: 16px" onclick="authenticateUser()">Login with Keycloak</button>
         <div id="auth-status" style="margin-top:12px"></div>
-      </div>
+    </div>
 
       <div class="footer">Built with Rust, Actix, Keycloak, HTMX</div>
     </div>
