@@ -7,9 +7,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/ext/upload.js"></script>
   <script>
     // Minimal htmx extension: ensure Authorization header is attached
-    htmx.defineExtension('upload', {
+    htmx.defineExtension('auth', {
       onEvent: function (name, evt) {
         if (name === 'htmx:beforeRequest') {
           var el = evt.detail.elt;
@@ -28,43 +29,78 @@
   <script src="config.js"></script>
   <style>
     :root {
-      --panel: #11182d; --panel-border:#1f2b48; --text:#e6ecff; --muted:#9fb0d3;
-      --primary:#4f7cff; --primary-600:#3c63d6; --radius:12px; --shadow:0 10px 30px rgba(0,0,0,.35);
-      --success-bg:#0f3322; --success-border:#1e7a53; --error-bg:#331616; --error-border:#7a2a2a;
+      --bg-start:#ffffff; --bg-end:#ffffff;
+      --panel:#ffffff; --panel-border:#e6eaf2; --text:#0a0f1e; --muted:#5b6b88;
+      --primary:#2055c6; --primary-600:#c5d2ee; --radius:14px; --shadow:0 12px 36px rgba(0,0,0,.10);
+      --success-bg:#eefaf3; --success-border:#1e7a53; --error-bg:#fdeaea; --error-border:#e06464;
+      --cool1:#ffffff; --cool2:#ffffff; --cool3:#ffffff;
     }
     html,body{height:100%}
-    body{margin:0;font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);
-      background: radial-gradient(1200px 600px at 10% -10%, #1a2a6c33, transparent 60%),
-                  radial-gradient(900px 500px at 110% 10%, #b21f1f22, transparent 50%),
-                  linear-gradient(180deg, #0a0f1e 0%, #090d1a 100%); overflow-x:hidden}
-    .container{max-width:1100px;margin:0 auto;padding:42px 24px 80px}
-    .app-header{position:fixed;top:14px;right:18px;z-index:20}
-    .btn{appearance:none;border:0;border-radius:10px;padding:10px 14px;font-weight:600;color:#fff;cursor:pointer;
-      transition:transform .06s ease, background .2s ease, box-shadow .2s ease;box-shadow:0 6px 18px rgba(79,124,255,.25)}
+    body{
+      margin:0;font-family:"Inter",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--text);
+      background:
+        radial-gradient(900px 600px at 12% 8%, rgba(255,255,255,0.10), rgba(255,255,255,0) 60%),
+        radial-gradient(700px 500px at 88% 12%, rgba(120,145,180,0.18), rgba(120,145,180,0) 60%),
+        radial-gradient(800px 550px at 50% 110%, rgba(26,36,60,0.40), rgba(26,36,60,0) 60%),
+        linear-gradient(180deg, #ccd0da 0%, #2055c6 100%);
+      overflow:hidden
+    }
+
+    .titlebar{position:fixed;top:0;left:0;right:0;height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:linear-gradient(180deg, #ffffffcc, #ffffffbb);backdrop-filter:blur(8px);border-bottom:1px solid #e6eaf2;z-index:50}
+    .titlebar-left{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
+    .window-controls{display:flex;align-items:center;gap:8px}
+    .window-dot{width:10px;height:10px;border-radius:999px;background:#cfd7e6;border:1px solid #d9e1ee}
+    .logout-btn{display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid #e1e7f2;color:#0a0f1e;padding:8px 12px;border-radius:10px;cursor:pointer}
+    .logout-btn:hover{background:#f4f6fb}
+
+    .container{max-width:1200px;margin:0 auto;padding:72px 24px 28px}
+    .stage{min-height:calc(100vh - 52px);display:grid;place-items:center}
+    .layout{width:min(820px, 92vw)}
+
+    .panel{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow);backdrop-filter:saturate(110%) blur(4px)}
+
+    .dropzone{display:grid;place-items:center;min-height:320px;border:2px dashed #d6deee;border-radius:16px;background:linear-gradient(180deg, #ffffff, #fbfcff);transition:background .2s,border-color .2s}
+    .dropzone.dragover{border-color:#8fb4ff;background:linear-gradient(180deg, #f5f9ff, #ffffff)}
+    .dropzone-inner{text-align:center}
+    .dropzone-title{font-size:20px;margin:4px 0 10px}
+    .dropzone-sub{color:var(--muted);font-size:13px}
+
+    .actions{display:flex;gap:12px;justify-content:center;margin-top:18px}
+    .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;color:#0a0f1e;cursor:pointer;transition:transform .06s ease, background .2s ease, box-shadow .2s ease;box-shadow:0 8px 20px rgba(255,138,51,.25)}
     .btn:active{transform:translateY(1px) scale(.99)}
     .btn-primary{background:var(--primary)} .btn-primary:hover{background:var(--primary-600)}
-    .btn-secondary{background:#233158;box-shadow:0 6px 18px rgba(35,49,88,.25)}
-    .title{font-size:28px;font-weight:700;letter-spacing:.3px;margin:8px 0 28px;background:linear-gradient(90deg,#a0b4ff,#e6ecff);
-      -webkit-background-clip:text;background-clip:text;color:transparent}
-    .card{background:var(--panel);border:1px solid var(--panel-border);border-radius:var(--radius);padding:38px 30px;
-      box-shadow:var(--shadow);backdrop-filter:blur(6px);margin:18px 0}
-    .row{display:grid;grid-template-columns:1.4fr .6fr;gap:24px;align-items:start}
-    @media (max-width: 900px){.row{grid-template-columns:1fr}}
-    input[type=file]{width:100%;color:var(--muted);background:#0e1530;border:1px dashed #2b3a6a;border-radius:14px;padding:26px;font-size:16px}
-    .progress{margin-top:10px}
-    .progress-bar{width:100%;height:14px;background:#0e1530;border:1px solid #213264;border-radius:999px;overflow:hidden}
+    .btn-secondary{background:#f0f3fa;color:#0a0f1e;box-shadow:0 6px 18px rgba(35,49,88,.10)}
+
+    input[type=file]{display:none}
+
+    .progress{margin-top:16px}
+    .progress-bar{width:100%;height:12px;background:#f1f4fb;border:1px solid #d6deee;border-radius:999px;overflow:hidden}
     .progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#4f7cff,#8aa4ff);transition:width .25s ease-in-out}
     .progress-text{color:var(--muted);font-size:12px;margin:8px 0 6px}
-    .status{padding:12px 14px;margin:12px 0;border-radius:10px;border:1px solid transparent}
-    .status.success{background:var(--success-bg);border-color:var(--success-border)}
-    .status.error{background:var(--error-bg);border-color:var(--error-border)}
+
+    /* Sidebar removed per request */
+
     .bubbles{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-    .bubbles span{position:absolute;display:block;width:var(--s,14px);height:var(--s,14px);border-radius:999px;
-      background:radial-gradient(#a0b4ff22,#a0b4ff00 70%);filter:blur(2px);animation:drift var(--t,18s) linear infinite}
+    .bubbles span{position:absolute;display:block;width:var(--s,14px);height:var(--s,14px);border-radius:999px;background:radial-gradient(#a0b4ff22,#a0b4ff00 70%);filter:blur(2px);animation:drift var(--t,18s) linear infinite}
     @keyframes drift{0%{transform:translate(var(--x,0),var(--y,0)) scale(1);opacity:.25}50%{transform:translate(calc(var(--x,0) * -1),calc(var(--y,0) * -1)) scale(1.12);opacity:.18}100%{transform:translate(var(--x,0),var(--y,0)) scale(1);opacity:.25}}
   </style>
 </head>
 <body>
+  <div class="titlebar">
+    <div class="titlebar-left">
+      <div class="window-controls">
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+        <span class="window-dot"></span>
+      </div>
+      <div style="margin-left:10px">FileStack</div>
+    </div>
+    <button class="logout-btn" onclick="logout()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M15 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9" stroke="#cfe0ff" stroke-width="1.6"/><path d="M10 17l5-5-5-5" stroke="#cfe0ff" stroke-width="1.6"/><path d="M21 12H9" stroke="#cfe0ff" stroke-width="1.6"/></svg>
+      Logout
+    </button>
+  </div>
+
   <!-- floating bubbles background -->
   <div class="bubbles" aria-hidden="true">
     <span style="left:6%; top:12%; --x:80px; --y:-120px; --s:18px; --t:19s"></span>
@@ -75,25 +111,30 @@
     <span style="left:84%; top:52%; --x:110px; --y:-110px; --s:20px; --t:24s"></span>
   </div>
 
-  <div class="container">
-    <div class="app-header"><button class="btn btn-secondary" onclick="logout()">Logout</button></div>
-    <div class="title">Upload your file</div>
-
-    <div class="row">
-      <div class="card">
-        <form id="upload-form" hx-post="http://localhost:3000/api/upload" hx-target="#upload-response" hx-ext="upload" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+  <div class="container stage">
+      <div class="layout">
+        <div class="panel">
+          <form id="upload-form" hx-post="http://localhost:3000/api/upload" hx-target="#upload-response" hx-ext="upload,auth" hx-encoding="multipart/form-data" enctype="multipart/form-data">
+            <div id="dropzone" class="dropzone">
+              <div class="dropzone-inner">
+                <div class="dropzone-title">Drag & drop files here</div>
+                <div class="dropzone-sub">or click the button below to select files</div>
+                <div class="actions">
+                  <label class="btn btn-secondary" for="file-input">Choose Files</label>
+                  <button type="submit" id="upload-btn" class="btn btn-primary">Upload Files</button>
+                </div>
           <input type="file" name="file" id="file-input" required>
-          <button type="submit" class="btn btn-primary" id="upload-btn" style="margin-top:14px;min-width:220px;font-size:16px">Upload File</button>
+                <div id="selected-file" class="file-size" style="margin-top:10px"></div>
+              </div>
+            </div>
 
-          <div id="upload-progress" class="hidden">
-            <div class="progress-text">Uploading... <span id="progress-percent">0%</span></div>
-            <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill"></div></div>
+            <div id="upload-progress" class="progress">
+              <div class="progress-text">Progress: <span id="progress-percent">0%</span></div>
+              <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div></div>
           </div>
         </form>
-      </div>
 
-      <div class="card">
-        <div id="upload-response" class="muted">Your upload result will appear here.</div>
+          <div id="upload-response" class="status" style="margin-top:12px;color:var(--muted)">Your upload result will appear here.</div>
       </div>
     </div>
   </div>
@@ -127,12 +168,59 @@
       }
     });
 
-    // Progress handlers (works if htmx upload extension features available)
+    // Show selected filename
+    const fileInput = document.getElementById('file-input');
+    const selectedFileEl = document.getElementById('selected-file');
+    fileInput.addEventListener('change', function(){
+      if (fileInput.files && fileInput.files.length > 0) {
+        const f = fileInput.files[0];
+        const sizeKB = Math.max(1, Math.round(f.size/1024));
+        selectedFileEl.textContent = `${f.name} • ${sizeKB} KB`;
+      } else {
+        selectedFileEl.textContent = '';
+      }
+    });
+
+    // Drag & drop wiring to the hidden input
+    const dropzone = document.getElementById('dropzone');
+    dropzone.addEventListener('dragover', function(e){ e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', function(){ dropzone.classList.remove('dragover'); });
+    dropzone.addEventListener('drop', function(e){
+      e.preventDefault(); dropzone.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        const event = new Event('change');
+        fileInput.dispatchEvent(event);
+      }
+    });
+
+    // Initialize progress at 0%
+    (function initProgress(){
+      document.getElementById('upload-progress').style.display = '';
+      document.getElementById('progress-bar-fill').style.width = '0%';
+      document.getElementById('progress-percent').textContent = '0%';
+    })();
+
+    document.body.addEventListener('htmx:upload:beforeSend', function(){
+      document.getElementById('upload-progress').style.display = '';
+      document.getElementById('progress-bar-fill').style.width = '0%';
+      document.getElementById('progress-percent').textContent = '0%';
+    });
+
     document.body.addEventListener('htmx:upload:progress', function(evt){
       const p = Math.round((evt.detail.loaded/evt.detail.total)*100);
       document.getElementById('progress-bar-fill').style.width = p + '%';
       document.getElementById('progress-percent').textContent = p + '%';
-      document.getElementById('upload-progress').classList.remove('hidden');
+    });
+
+    document.body.addEventListener('htmx:afterRequest', function(evt){
+      if (evt.detail.elt && evt.detail.elt.id === 'upload-form') {
+        // Reset back to 0% after the request completes
+        setTimeout(function(){
+          document.getElementById('progress-bar-fill').style.width = '0%';
+          document.getElementById('progress-percent').textContent = '0%';
+        }, 400);
+      }
     });
 
     document.body.addEventListener('htmx:beforeRequest', function(evt){
