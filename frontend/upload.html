@@ -74,9 +74,12 @@
     input[type=file]{display:none}
 
     .progress{margin-top:16px}
-    .progress-bar{width:100%;height:12px;background:#f1f4fb;border:1px solid #d6deee;border-radius:999px;overflow:hidden}
-    .progress-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,#4f7cff,#8aa4ff);transition:width .25s ease-in-out}
-    .progress-text{color:var(--muted);font-size:12px;margin:8px 0 6px}
+    .progress-bar{width:100%;height:16px;background:#ffffff;border:2px solid #e6eaf2;border-radius:999px;overflow:hidden;position:relative}
+    .progress-bar-fill{height:100%;width:0%;background:#2055c6;transition:width .3s ease-in-out;border-radius:999px}
+    .progress-text{color:var(--muted);font-size:13px;margin:8px 0 6px;font-weight:600}
+    .progress.hidden{display:none}
+    .progress.uploading .progress-bar-fill{background:#2055c6}
+    .progress.completed .progress-bar-fill{background:#2055c6}
 
     /* Sidebar removed per request */
 
@@ -129,9 +132,11 @@
             </div>
 
             <div id="upload-progress" class="progress">
-              <div class="progress-text">Progress: <span id="progress-percent">0%</span></div>
-              <div class="progress-bar"><div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div></div>
-          </div>
+              <div class="progress-text">Upload Progress: <span id="progress-percent">0%</span></div>
+              <div class="progress-bar">
+                <div id="progress-bar-fill" class="progress-bar-fill" style="width:0%"></div>
+              </div>
+            </div>
         </form>
 
           <div id="upload-response" class="status" style="margin-top:12px;color:var(--muted)">Your upload result will appear here.</div>
@@ -196,30 +201,66 @@
 
     // Initialize progress at 0%
     (function initProgress(){
-      document.getElementById('upload-progress').style.display = '';
-      document.getElementById('progress-bar-fill').style.width = '0%';
-      document.getElementById('progress-percent').textContent = '0%';
+      const progressContainer = document.getElementById('upload-progress');
+      const progressBar = document.getElementById('progress-bar-fill');
+      const progressPercent = document.getElementById('progress-percent');
+      
+      progressContainer.classList.remove('uploading', 'completed');
+      progressBar.style.width = '0%';
+      progressPercent.textContent = '0%';
     })();
 
     document.body.addEventListener('htmx:upload:beforeSend', function(){
-      document.getElementById('upload-progress').style.display = '';
-      document.getElementById('progress-bar-fill').style.width = '0%';
-      document.getElementById('progress-percent').textContent = '0%';
+      const progressContainer = document.getElementById('upload-progress');
+      const progressBar = document.getElementById('progress-bar-fill');
+      const progressPercent = document.getElementById('progress-percent');
+      
+      // Start upload state
+      progressContainer.classList.remove('completed');
+      progressContainer.classList.add('uploading');
+      progressBar.style.width = '0%';
+      progressPercent.textContent = '0%';
     });
 
     document.body.addEventListener('htmx:upload:progress', function(evt){
+      const progressContainer = document.getElementById('upload-progress');
+      const progressBar = document.getElementById('progress-bar-fill');
+      const progressPercent = document.getElementById('progress-percent');
+      
       const p = Math.round((evt.detail.loaded/evt.detail.total)*100);
-      document.getElementById('progress-bar-fill').style.width = p + '%';
-      document.getElementById('progress-percent').textContent = p + '%';
+      progressBar.style.width = p + '%';
+      progressPercent.textContent = p + '%';
+      
+      // Ensure we're in uploading state
+      progressContainer.classList.add('uploading');
     });
 
     document.body.addEventListener('htmx:afterRequest', function(evt){
       if (evt.detail.elt && evt.detail.elt.id === 'upload-form') {
-        // Reset back to 0% after the request completes
-        setTimeout(function(){
-          document.getElementById('progress-bar-fill').style.width = '0%';
-          document.getElementById('progress-percent').textContent = '0%';
-        }, 400);
+        const progressContainer = document.getElementById('upload-progress');
+        const progressBar = document.getElementById('progress-bar-fill');
+        const progressPercent = document.getElementById('progress-percent');
+        
+        // Check if upload was successful
+        if (evt.detail.xhr && evt.detail.xhr.status === 200) {
+          // Show completion state briefly
+          progressContainer.classList.remove('uploading');
+          progressContainer.classList.add('completed');
+          progressBar.style.width = '100%';
+          progressPercent.textContent = '100%';
+          
+          // Reset after showing completion
+          setTimeout(function(){
+            progressContainer.classList.remove('completed');
+            progressBar.style.width = '0%';
+            progressPercent.textContent = '0%';
+          }, 1500);
+        } else {
+          // Reset immediately on error
+          progressContainer.classList.remove('uploading', 'completed');
+          progressBar.style.width = '0%';
+          progressPercent.textContent = '0%';
+        }
       }
     });
 
@@ -229,7 +270,6 @@
         console.log('Request URL:', evt.detail.xhr.url);
         console.log('Request method:', evt.detail.xhr.method);
         document.getElementById('upload-btn').disabled = true;
-        document.getElementById('upload-progress').classList.remove('hidden');
       }
     });
 
@@ -242,9 +282,6 @@
           return;
         }
         document.getElementById('upload-btn').disabled = false;
-        document.getElementById('upload-progress').classList.add('hidden');
-        document.getElementById('progress-bar-fill').style.width = '0%';
-        document.getElementById('progress-percent').textContent = '0%';
       }
     });
 
