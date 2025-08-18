@@ -5,7 +5,7 @@ const CONFIG = {
     KEYCLOAK_URL: 'http://10.72.220.223:8081',
     KEYCLOAK_REALM: 'upload-realm',
     CLIENT_ID: 'upload-client',
-    CLIENT_SECRET: 'Uj5sqrYfvMZWT4g2Sw0Vs3rwAj4SU7ro',
+    CLIENT_SECRET: 'dYhBaLvJ2vLQIZ487nZQCMWyVETwvOqj',
     
     // Backend Configuration - using exact values from .env
     BACKEND_URL: 'http://localhost:3000',
