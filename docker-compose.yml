@@ -37,7 +37,7 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=upload-realm
       - CLIENT_ID=upload-client
-      - CLIENT_SECRET=Uj5sqrYfvMZWT4g2Sw0Vs3rwAj4SU7ro
+      - CLIENT_SECRET=dYhBaLvJ2vLQIZ487nZQCMWyVETwvOqj
       - JWT_AUDIENCE=account,upload-client
       - BACKEND_PORT=3000
       - UPLOADS_DIR=/app/uploads
